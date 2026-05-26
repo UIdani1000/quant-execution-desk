@@ -18,8 +18,12 @@ export function TradingLog() {
 
   async function fetchLiveLogs() {
     try {
-      // 🎯 FIXED: Uses dynamic bridge endpoint for seamless switching between localhost and ngrok
-      const res = await fetch(`${apiBase}/api/strategy-status`);
+      // 🎯 FIXED: Explicitly passes the ngrok bypass header to ensure raw JSON ingestion
+      const res = await fetch(`${apiBase}/api/strategy-status`, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
       if (!res.ok) return;
       const data = await res.json();
       
@@ -30,7 +34,7 @@ export function TradingLog() {
         const assetData = data[key];
         if (assetData.sniper_5m === "Filter Restrained") {
           generatedLogs.push({
-            id: `${key}-restrained`,
+            id: `${key}-restrained-${Date.now()}`, // Appended unique factor to prevent collision over multiple poll cycles
             timestamp: timeString,
             asset: key,
             message: `[GUARD] Core indicators activated. Execution locked out due to weak volume/momentum conditions.`,
@@ -38,7 +42,7 @@ export function TradingLog() {
           });
         } else if (assetData.sniper_5m === "Sniper Ready") {
           generatedLogs.push({
-            id: `${key}-ready`,
+            id: `${key}-ready-${Date.now()}`,
             timestamp: timeString,
             asset: key,
             message: `[SIGNAL] All structural dimensions verified. Direct entry parameters initialized.`,

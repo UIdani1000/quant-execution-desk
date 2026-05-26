@@ -52,14 +52,22 @@ export default function Dashboard() {
   async function fetchDashboardData() {
     try {
       // 1. Fetch live technical analysis and strategy signals via secure tunnel
-      const stratRes = await fetch(`${apiBase}/api/strategy-status`);
+      const stratRes = await fetch(`${apiBase}/api/strategy-status`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       if (stratRes.ok) {
         const stratData = await stratRes.json();
         setLiveStrategies(stratData);
       }
       
       // 2. Fetch live account balance financials via secure tunnel
-      const metricRes = await fetch(`${apiBase}/api/account-metrics`);
+      const metricRes = await fetch(`${apiBase}/api/account-metrics`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       if (metricRes.ok) {
         const metricData = await metricRes.json();
         setMetrics({
@@ -71,14 +79,22 @@ export default function Dashboard() {
       }
 
       // 3. Fetch active broker terminal exposure via secure tunnel
-      const posRes = await fetch(`${apiBase}/api/active-positions`);
+      const posRes = await fetch(`${apiBase}/api/active-positions`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       if (posRes.ok) {
         const posData = await posRes.json();
         setActivePositions(posData);
       }
 
       // 4. Fetch strategy edge performance intelligence from history logs
-      const perfRes = await fetch(`${apiBase}/api/performance-metrics`);
+      const perfRes = await fetch(`${apiBase}/api/performance-metrics`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
       if (perfRes.ok) {
         const perfData = await perfRes.json();
         setPerfMetrics(perfData);
@@ -98,7 +114,10 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${apiBase}/api/update-config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
         body: JSON.stringify({
           asset_key: assetKey,
           filter_type: filterType,
