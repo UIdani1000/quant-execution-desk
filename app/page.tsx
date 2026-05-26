@@ -25,6 +25,7 @@ interface AssetStrategy {
 interface StrategyState { [key: string]: AssetStrategy; }
 interface AccountMetrics { balance: number; equity: number; profit: number; margin_level: number; }
 interface PerformanceData { win_rate: number; profit_factor: number; total_trades: number; avg_win: number; avg_loss: number; max_drawdown: number; }
+interface EngineAlert { id: number; timestamp: string; symbol: string; type: 'REJECTION' | 'EXECUTION' | 'WARNING'; message: string; }
 
 // 📡 CENTRALIZED NETWORK BRIDGE GATEWAY (Looks for Vercel Environment Variables first)
 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [liveStrategies, setLiveStrategies] = useState<StrategyState>({});
   const [metrics, setMetrics] = useState<AccountMetrics>({ balance: 0, equity: 0, profit: 0, margin_level: 100 });
   const [activePositions, setActivePositions] = useState<any[]>([]);
+  const [logs, setLogs] = useState<EngineAlert[]>([]);
   
   const [perfMetrics, setPerfMetrics] = useState<PerformanceData>({
     win_rate: 0,
@@ -93,6 +95,17 @@ export default function Dashboard() {
         const perfData = await perfRes.json();
         setPerfMetrics(perfData);
       }
+
+      // 5. Fetch live execution rejections and broker engine alerts
+      const alertsRes = await fetch(`${apiBase}/api/engine-alerts`, {
+        headers: {
+          "ngrok-skip-browser-warning": "true"
+        }
+      });
+      if (alertsRes.ok) {
+        const alertsData = await alertsRes.json();
+        setLogs(alertsData);
+      }
     } catch (error) {
       console.error("Data tracking pipe offline:", error);
     }
@@ -128,31 +141,28 @@ export default function Dashboard() {
 
   // 🛠️ HELPER: Dynamically generates clean UI labels and adaptive price formatting
   const getAssetUIProperties = (key: string, price: number) => {
-    // Label parsing
     let label = key;
     if (key === 'XAUUSD') label = 'Gold';
     else if (key === 'XAGUSD') label = 'Silver';
     else if (key.endsWith('USDT')) label = key.replace('USDT', '');
     else if (key.endsWith('USD')) label = key.replace('USD', '');
 
-    // Price precision mapping
     let formattedPrice = price.toString();
     if (price !== undefined && price !== null) {
       if (key.includes('JPY')) {
-        formattedPrice = price.toFixed(3); // Forex JPY Crosses (e.g., 159.326)
+        formattedPrice = price.toFixed(3); 
       } else if (key.includes('USDT')) {
-        formattedPrice = price.toLocaleString(undefined, { maximumFractionDigits: 2 }); // Crypto (e.g., 76,780.97)
+        formattedPrice = price.toLocaleString(undefined, { maximumFractionDigits: 2 }); 
       } else if (key === 'XAUUSD' || key === 'XAGUSD') {
-        formattedPrice = price.toFixed(2); // Precious Metals
+        formattedPrice = price.toFixed(2); 
       } else {
-        formattedPrice = price.toFixed(5); // Standard 5-decimal Forex pairs (e.g., 1.16211)
+        formattedPrice = price.toFixed(5); 
       }
     }
 
     return { label, formattedPrice };
   };
 
-  // Extract keys dynamically from API state payload, fallback to empty array if loading
   const dynamicAssetKeys = Object.keys(liveStrategies);
 
   return (
@@ -224,7 +234,7 @@ export default function Dashboard() {
                       <div className="border-t border-b border-border/60 py-3 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">1H Trend:</span>
-                          <span className={`font-semibold ${assetData.trend_1h?.includes('BULLISH') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          <span className={`font-semibold ${assetData.trend_1h?.includes('BULLISH') ? 'text-emerald-400' : assetData.trend_1h?.includes('BEARISH') ? 'text-rose-400' : 'text-zinc-500'}`}>
                             {assetData.trend_1h || "Loading..."}
                           </span>
                         </div>
@@ -288,7 +298,7 @@ export default function Dashboard() {
 
           {/* 💻 LOG TERMINAL WINDOW */}
           <section>
-            <TradingLog />
+            <TradingLog logs={logs} />
           </section>
         </div>
       </main>
