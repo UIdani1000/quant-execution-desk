@@ -30,13 +30,7 @@ interface PerformanceData { win_rate: number; profit_factor: number; total_trade
 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 export default function Dashboard() {
-  const [liveStrategies, setLiveStrategies] = useState<StrategyState>({
-    XAUUSD: { price: 0.0, trend_1h: "Loading...", structure_15m: "Loading...", sniper_5m: "Loading...", allowed: false, config: { use_rsi_filter: true, use_atr_filter: true } },
-    XAGUSD: { price: 0.0, trend_1h: "Loading...", structure_15m: "Loading...", sniper_5m: "Loading...", allowed: false, config: { use_rsi_filter: true, use_atr_filter: true } },
-    BTCUSDT: { price: 0.0, trend_1h: "Loading...", structure_15m: "Loading...", sniper_5m: "Loading...", allowed: false, config: { use_rsi_filter: false, use_atr_filter: false } },
-    ETHUSDT: { price: 0.0, trend_1h: "Loading...", structure_15m: "Loading...", sniper_5m: "Loading...", allowed: false, config: { use_rsi_filter: false, use_atr_filter: true } },
-  });
-
+  const [liveStrategies, setLiveStrategies] = useState<StrategyState>({});
   const [metrics, setMetrics] = useState<AccountMetrics>({ balance: 0, equity: 0, profit: 0, margin_level: 100 });
   const [activePositions, setActivePositions] = useState<any[]>([]);
   
@@ -132,12 +126,34 @@ export default function Dashboard() {
     }
   }
 
-  const assetDisplayArray = [
-    { key: 'XAUUSD', label: 'Gold', price: liveStrategies.XAUUSD.price, data: liveStrategies.XAUUSD, format: (p: number) => p.toFixed(2) },
-    { key: 'XAGUSD', label: 'Silver', price: liveStrategies.XAGUSD.price, data: liveStrategies.XAGUSD, format: (p: number) => p.toFixed(2) },
-    { key: 'BTCUSDT', label: 'Bitcoin', price: liveStrategies.BTCUSDT.price, data: liveStrategies.BTCUSDT, format: (p: number) => p.toLocaleString() },
-    { key: 'ETHUSDT', label: 'Ethereum', price: liveStrategies.ETHUSDT.price, data: liveStrategies.ETHUSDT, format: (p: number) => p.toLocaleString() },
-  ];
+  // 🛠️ HELPER: Dynamically generates clean UI labels and adaptive price formatting
+  const getAssetUIProperties = (key: string, price: number) => {
+    // Label parsing
+    let label = key;
+    if (key === 'XAUUSD') label = 'Gold';
+    else if (key === 'XAGUSD') label = 'Silver';
+    else if (key.endsWith('USDT')) label = key.replace('USDT', '');
+    else if (key.endsWith('USD')) label = key.replace('USD', '');
+
+    // Price precision mapping
+    let formattedPrice = price.toString();
+    if (price !== undefined && price !== null) {
+      if (key.includes('JPY')) {
+        formattedPrice = price.toFixed(3); // Forex JPY Crosses (e.g., 159.326)
+      } else if (key.includes('USDT')) {
+        formattedPrice = price.toLocaleString(undefined, { maximumFractionDigits: 2 }); // Crypto (e.g., 76,780.97)
+      } else if (key === 'XAUUSD' || key === 'XAGUSD') {
+        formattedPrice = price.toFixed(2); // Precious Metals
+      } else {
+        formattedPrice = price.toFixed(5); // Standard 5-decimal Forex pairs (e.g., 1.16211)
+      }
+    }
+
+    return { label, formattedPrice };
+  };
+
+  // Extract keys dynamically from API state payload, fallback to empty array if loading
+  const dynamicAssetKeys = Object.keys(liveStrategies);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -181,68 +197,79 @@ export default function Dashboard() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {assetDisplayArray.map((asset) => (
-                <div key={asset.key} className="bg-card rounded-xl border border-border p-5 space-y-5 shadow-sm">
-                  
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-lg text-foreground">{asset.label}</h4>
-                      <p className="text-xs text-muted-foreground font-mono">{asset.key}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-mono font-medium">
-                        ${asset.format(asset.price)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-b border-border/60 py-3 space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">1H Trend:</span>
-                      <span className={`font-semibold ${asset.data.trend_1h.includes('BULLISH') ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {asset.data.trend_1h}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">15M Pullback:</span>
-                      <span className="text-foreground font-medium">{asset.data.structure_15m}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">5M Sniper:</span>
-                      <span className={`font-semibold ${asset.data.sniper_5m.includes('Ready') ? 'text-emerald-400' : asset.data.sniper_5m.includes('Restrained') ? 'text-amber-400' : 'text-zinc-500'}`}>
-                        {asset.data.sniper_5m}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bg-background/40 p-3 rounded-lg border border-border/40 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Active Guards</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium cursor-pointer" htmlFor={`rsi-${asset.key}`}>1H RSI Filter</label>
-                      <input
-                        id={`rsi-${asset.key}`}
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
-                        checked={asset.data.config.use_rsi_filter}
-                        onChange={() => handleToggleFilter(asset.key, 'use_rsi_filter', asset.data.config.use_rsi_filter)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium cursor-pointer" htmlFor={`atr-${asset.key}`}>15M ATR Volatility</label>
-                      <input
-                        id={`atr-${asset.key}`}
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
-                        checked={asset.data.config.use_atr_filter}
-                        onChange={() => handleToggleFilter(asset.key, 'use_atr_filter', asset.data.config.use_atr_filter)}
-                      />
-                    </div>
-                  </div>
-
+              {dynamicAssetKeys.length === 0 ? (
+                <div className="col-span-full text-center py-12 text-muted-foreground font-mono text-sm border border-dashed border-border rounded-xl">
+                  Awaiting engine connection pipeline streams...
                 </div>
-              ))}
+              ) : (
+                dynamicAssetKeys.map((key) => {
+                  const assetData = liveStrategies[key];
+                  const { label, formattedPrice } = getAssetUIProperties(key, assetData.price);
+
+                  return (
+                    <div key={key} className="bg-card rounded-xl border border-border p-5 space-y-5 shadow-sm">
+                      
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-lg text-foreground">{label}</h4>
+                          <p className="text-xs text-muted-foreground font-mono">{key}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md font-mono font-medium">
+                            ${formattedPrice}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-b border-border/60 py-3 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">1H Trend:</span>
+                          <span className={`font-semibold ${assetData.trend_1h?.includes('BULLISH') ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {assetData.trend_1h || "Loading..."}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">15M Pullback:</span>
+                          <span className="text-foreground font-medium">{assetData.structure_15m || "Loading..."}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">5M Sniper:</span>
+                          <span className={`font-semibold ${assetData.sniper_5m?.includes('Ready') ? 'text-emerald-400' : assetData.sniper_5m?.includes('Restrained') ? 'text-amber-400' : 'text-zinc-500'}`}>
+                            {assetData.sniper_5m || "Loading..."}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-background/40 p-3 rounded-lg border border-border/40 space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Active Guards</p>
+                        
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium cursor-pointer" htmlFor={`rsi-${key}`}>1H RSI Filter</label>
+                          <input
+                            id={`rsi-${key}`}
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                            checked={assetData.config?.use_rsi_filter || false}
+                            onChange={() => handleToggleFilter(key, 'use_rsi_filter', assetData.config?.use_rsi_filter || false)}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium cursor-pointer" htmlFor={`atr-${key}`}>15M ATR Volatility</label>
+                          <input
+                            id={`atr-${key}`}
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-gray-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                            checked={assetData.config?.use_atr_filter || false}
+                            onChange={() => handleToggleFilter(key, 'use_atr_filter', assetData.config?.use_atr_filter || false)}
+                          />
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })
+              )}
             </div>
           </section>
 
