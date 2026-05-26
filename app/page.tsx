@@ -1,5 +1,5 @@
 'use client';
-
+export const dynamic = 'force-dynamic';
 import { useState, useEffect } from 'react';
 import { TradingHeader } from '@/components/trading-header';
 import { ManualEntryPanel } from '@/components/manual-entry-panel';
