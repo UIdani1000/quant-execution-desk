@@ -1,6 +1,6 @@
 'use client';
 export const dynamic = 'force-dynamic';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TradingHeader } from '@/components/trading-header';
 import { ManualEntryPanel } from '@/components/manual-entry-panel';
 import { PositionsTable } from '@/components/positions-table';
@@ -36,6 +36,9 @@ export default function Dashboard() {
   const [activePositions, setActivePositions] = useState<any[]>([]);
   const [logs, setLogs] = useState<EngineAlert[]>([]);
   
+  // 🚨 Track old positions count to detect new executions
+  const prevPositionsCount = useRef<number | null>(null);
+
   const [perfMetrics, setPerfMetrics] = useState<PerformanceData>({
     win_rate: 0,
     profit_factor: 0,
@@ -44,6 +47,52 @@ export default function Dashboard() {
     avg_loss: 0,
     max_drawdown: 0
   });
+
+  // 🔊 Synthesize an aggressive, multi-frequency siren sound programmatically
+  const playSirenAlert = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      
+      const ctx = new AudioContext();
+      const duration = 2.0; // Total alarm blast duration in seconds
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc1.type = 'sawtooth';
+      osc2.type = 'square';
+
+      const now = ctx.currentTime;
+      osc1.frequency.setValueAtTime(600, now);
+      osc2.frequency.setValueAtTime(650, now);
+      
+      // Piercing pitch modulation loop
+      for (let i = 0; i < duration * 4; i++) {
+        const timeOffset = i * 0.25;
+        osc1.frequency.linearRampToValueAtTime(900, now + timeOffset + 0.12);
+        osc1.frequency.linearRampToValueAtTime(600, now + timeOffset + 0.25);
+        
+        osc2.frequency.linearRampToValueAtTime(950, now + timeOffset + 0.12);
+        osc2.frequency.linearRampToValueAtTime(650, now + timeOffset + 0.25);
+      }
+
+      // Safe but loud volume tracking envelope
+      gainNode.gain.setValueAtTime(0.25, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
+    } catch (error) {
+      console.error("Siren audio context blocked or failed:", error);
+    }
+  };
 
   async function fetchDashboardData() {
     try {
@@ -82,6 +131,15 @@ export default function Dashboard() {
       });
       if (posRes.ok) {
         const posData = await posRes.json();
+        
+        // 🚨 SIREN ENGINE RADAR LOGIC
+        if (Array.isArray(posData)) {
+          if (prevPositionsCount.current !== null && posData.length > prevPositionsCount.current) {
+            playSirenAlert();
+          }
+          prevPositionsCount.current = posData.length;
+        }
+        
         setActivePositions(posData);
       }
 
