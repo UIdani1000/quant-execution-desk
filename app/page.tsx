@@ -28,7 +28,7 @@ interface PerformanceData { win_rate: number; profit_factor: number; total_trade
 interface EngineAlert { id: number; timestamp: string; symbol: string; type: 'REJECTION' | 'EXECUTION' | 'WARNING'; message: string; }
 
 // 📡 CENTRALIZED NETWORK BRIDGE GATEWAY (Looks for Vercel Environment Variables first)
-const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://clip-ounce-uninsured.ngrok-free.dev';
+const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
 
 export default function Dashboard() {
   const [liveStrategies, setLiveStrategies] = useState<StrategyState>({});
